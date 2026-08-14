@@ -1,0 +1,428 @@
+Implementation Short Text     RFQ Enhancement
+Definition Name               ME_PURCHDOC_POSTED
+
+
+*&---------------------------------------------------------------------*
+*&  Include           ZMMI_RFQ_DOWNLOAD
+*&---------------------------------------------------------------------*
+* Date              : 05.03.2018
+* CR number         : RITM0098308
+* Functional Owner  : Satish Mallina / Praveen Patil
+* Programmer        : Ganesh T
+* Transport Request : IN1K908678
+* T-code            : ME41
+************************************************************************
+*Short Description  : Include to download the RFQ data in excel file
+*                                                while creation of RFQ.
+************************************************************************
+
+    TYPES: BEGIN OF rfq_dom,
+             ebeln           TYPE zmm_rfq_dwn-ebeln,
+             ebelp           TYPE zmm_rfq_dwn-ebelp,
+             lifnr           TYPE zmm_rfq_dwn-lifnr,
+             zterm           TYPE zmm_rfq_dwn-zterm,
+             zterm_desc      TYPE zmm_rfq_dwn-zterm_desc,
+             inco1           TYPE zmm_rfq_dwn-inco1,
+             inco2           TYPE zmm_rfq_dwn-inco2,
+             matnr           TYPE zmm_rfq_dwn-matnr,
+             maktx           TYPE zmm_rfq_dwn-maktx,
+             menge           TYPE zmm_rfq_dwn-menge,
+             meins           TYPE zmm_rfq_dwn-meins,
+             netpr           TYPE zmm_rfq_dwn-netpr,
+             mat_spec        TYPE zmm_rfq_dwn-mat_spec,
+             vend_spec       TYPE zmm_rfq_dwn-vend_spec,
+             mwskz           TYPE zmm_rfq_dwn-mwskz,
+             freight_percent TYPE zmm_rfq_dwn-freight_percent,
+             freight_value   TYPE zmm_rfq_dwn-freight_value,
+             freight_qty     TYPE zmm_rfq_dwn-freight_qty,
+             pf_per          TYPE zmm_rfq_dwn-pf_per,
+             pf_val          TYPE zmm_rfq_dwn-pf_val,
+             othr_chrg_val   TYPE zmm_rfq_dwn-othr_chrg_val,
+             othr_chrg_qty   TYPE zmm_rfq_dwn-othr_chrg_qty,
+             load_per        TYPE zmm_rfq_dwn-load_per,
+             load_val        TYPE zmm_rfq_dwn-load_val,
+             load_qty        TYPE zmm_rfq_dwn-load_qty,
+             hand_per        TYPE zmm_rfq_dwn-hand_per,
+             hand_val        TYPE zmm_rfq_dwn-hand_val,
+             hand_qty        TYPE zmm_rfq_dwn-hand_qty,
+             disc_per        TYPE zmm_rfq_dwn-disc_per,
+             disc_val        TYPE zmm_rfq_dwn-disc_val,
+             disc_qty        TYPE zmm_rfq_dwn-disc_qty,
+             deliv           TYPE zmm_rfq_dwn-deliv,
+             make            TYPE zmm_rfq_dwn-make,
+             warr            TYPE zmm_rfq_dwn-warr,
+             zzcomment       TYPE zmm_rfq_dwn-zzcomment,
+           END OF rfq_dom.
+
+    TYPES: BEGIN OF rfq_imp,
+             ebeln           TYPE zmm_rfq_dwn-ebeln,
+             ebelp           TYPE zmm_rfq_dwn-ebelp,
+             lifnr           TYPE zmm_rfq_dwn-lifnr,
+             zterm           TYPE zmm_rfq_dwn-zterm,
+             zterm_desc      TYPE zmm_rfq_dwn-zterm_desc,
+             inco1           TYPE zmm_rfq_dwn-inco1,
+             inco2           TYPE zmm_rfq_dwn-inco2,
+             matnr           TYPE zmm_rfq_dwn-matnr,
+             maktx           TYPE zmm_rfq_dwn-maktx,
+             menge           TYPE zmm_rfq_dwn-menge,
+             meins           TYPE zmm_rfq_dwn-meins,
+             netpr           TYPE zmm_rfq_dwn-netpr,
+             mat_spec        TYPE zmm_rfq_dwn-mat_spec,
+             vend_spec       TYPE zmm_rfq_dwn-vend_spec,
+             mwskz           TYPE zmm_rfq_dwn-mwskz,
+             freight_percent TYPE zmm_rfq_dwn-freight_percent,
+             freight_value   TYPE zmm_rfq_dwn-freight_value,
+             freight_qty     TYPE zmm_rfq_dwn-freight_qty,
+             othr_chrg_val   TYPE zmm_rfq_dwn-othr_chrg_val,
+             othr_chrg_qty   TYPE zmm_rfq_dwn-othr_chrg_qty,
+             basic_custom    TYPE zmm_rfq_dwn-basic_custom,
+             ecess           TYPE zmm_rfq_dwn-ecess,
+             secess          TYPE zmm_rfq_dwn-secess,
+             gstcess         TYPE zmm_rfq_dwn-gstcess,
+             insu_per        TYPE zmm_rfq_dwn-insu_per,
+             insu_val        TYPE zmm_rfq_dwn-insu_val,
+             deliv           TYPE zmm_rfq_dwn-deliv,
+             make            TYPE zmm_rfq_dwn-make,
+             warr            TYPE zmm_rfq_dwn-warr,
+             zzcomment       TYPE zmm_rfq_dwn-zzcomment,
+           END OF rfq_imp.
+
+    DATA: lt_excel     TYPE TABLE OF zmm_rfq_dwn,
+          ls_excel     TYPE zmm_rfq_dwn,
+          ls_ekpo      TYPE uekpo,
+          ls_eket      TYPE ueket,
+          lv_file_path TYPE string,
+          wa_timestamp TYPE ib_valto,
+          wa_zone      TYPE timezone,
+          v_time       TYPE string,
+          lv_tdname    TYPE thead-tdname,
+          lt_line      TYPE STANDARD TABLE OF tline,
+          ls_line      TYPE tline,
+          wa_header    TYPE zmm_rfq_dwn,
+          t_header     TYPE TABLE OF zmm_rfq_dwn,
+          ls_lfm1      TYPE lfm1,
+          lv_dom       TYPE lfm1-kalsk,
+          lv_imp       TYPE lfm1-kalsk,
+          lv_data      TYPE zxx_generic_data.
+
+    DATA: wa_hdrdom TYPE rfq_dom,
+          it_hdrdom TYPE TABLE OF rfq_dom,
+          wa_hdrimp TYPE rfq_imp,
+          it_hdrimp TYPE TABLE OF rfq_imp,
+          wa_itmdom TYPE rfq_dom,
+          it_itmdom TYPE TABLE OF rfq_dom,
+          wa_itmimp TYPE rfq_imp,
+          it_itmimp TYPE TABLE OF rfq_imp.
+
+    DATA: wa_tvzbt TYPE tvzbt.
+    DATA: wa_t052u TYPE t052u.
+
+    DATA: count TYPE i.
+    DATA: lv_lifnr TYPE lfa1-lifnr.
+    IF sy-tcode = 'ME41'.
+      CHECK im_ekko-bstyp = 'A'.
+      CLEAR ls_lfm1.
+      SELECT SINGLE * FROM lfm1 INTO ls_lfm1 WHERE lifnr EQ im_ekko-lifnr
+                                               AND ekorg EQ im_ekko-ekorg.
+      CLEAR: lv_dom, lv_imp.
+      CLEAR lv_data.
+      SELECT SINGLE * FROM zxx_generic_data
+                          INTO lv_data
+                          WHERE idnt1 = 'ZRFQ'
+                            AND idnt2 = 'DOMESTIC'
+                            AND idnt3 = 'KALSK'.
+      IF sy-subrc EQ 0.
+        lv_dom = lv_data-flval.
+      ENDIF.
+      CLEAR lv_data.
+      SELECT SINGLE * FROM zxx_generic_data
+                          INTO lv_data
+                          WHERE idnt1 = 'ZRFQ'
+                            AND idnt2 = 'IMPORT'
+                            AND idnt3 = 'KALSK'.
+      IF sy-subrc EQ 0.
+        lv_imp = lv_data-flval.
+      ENDIF.
+      IF NOT im_ekko IS INITIAL AND
+        NOT im_ekpo IS INITIAL.
+        CLEAR: wa_hdrdom, wa_hdrimp.
+        REFRESH: it_itmdom, it_itmimp.
+        CLEAR lv_lifnr.
+        CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+          EXPORTING
+            input  = im_ekko-lifnr
+          IMPORTING
+            output = lv_lifnr.
+
+        IF ls_lfm1-kalsk = lv_dom.
+          wa_hdrdom-ebeln           = 'RFQ Number'.
+          wa_hdrdom-ebelp           = 'RFQ Line item'.
+          wa_hdrdom-lifnr           = 'Vendor Code'.
+          wa_hdrdom-zterm           = 'Payment Terms'.
+          wa_hdrdom-zterm_desc      = 'Payment Terms Description'.
+          wa_hdrdom-inco1           = 'Incoterms (Part 1)'.
+          wa_hdrdom-inco2           = 'Incoterms (Part 2)'.
+          wa_hdrdom-matnr           = 'Material'.
+          wa_hdrdom-maktx           = 'Material Description'.
+          wa_hdrdom-menge           = 'Quantity'.
+          wa_hdrdom-meins           = 'UoM'.
+          wa_hdrdom-netpr           = 'Net Price'.
+          wa_hdrdom-mat_spec        = 'Material Specifications'.
+          wa_hdrdom-vend_spec       = 'Vendor Specifications'.
+          wa_hdrdom-mwskz           = 'Tax code'.
+          wa_hdrdom-freight_percent = 'Freight Charge %'.
+          wa_hdrdom-freight_value   = 'Freight Charge Value'.
+          wa_hdrdom-freight_qty     = 'Freight Charge Qty'.
+          wa_hdrdom-othr_chrg_val   = 'Other Charges Value'.
+          wa_hdrdom-othr_chrg_qty   = 'Other Charges Qty'.
+          wa_hdrdom-load_per        = 'Loading & Unloading %'.
+          wa_hdrdom-load_val        = 'Loading & Unloading Value'.
+          wa_hdrdom-load_qty        = 'Loading & Unloading Qty'.
+          wa_hdrdom-hand_per        = 'Handling Charge %'.
+          wa_hdrdom-hand_val        = 'Handling Charge Value'.
+          wa_hdrdom-hand_qty        = 'Handling Charge Qty'.
+          wa_hdrdom-disc_per        = 'Discount % on Net'.
+          wa_hdrdom-disc_val        = 'Absolute discount'.
+          wa_hdrdom-disc_qty        = 'Discount/Quantity'.
+          wa_hdrdom-pf_per          = 'P&F %'.
+          wa_hdrdom-pf_val          = 'P&F value'.
+          wa_hdrdom-deliv           = 'Delivery'.
+          wa_hdrdom-make            = 'Make'.
+          wa_hdrdom-warr            = 'Warranty'.
+          wa_hdrdom-zzcomment       = 'Comments'.
+          APPEND wa_hdrdom TO it_hdrdom.
+          CLEAR wa_hdrdom.
+          REFRESH it_itmdom. CLEAR wa_itmdom.
+          LOOP AT im_ekpo INTO ls_ekpo.
+            wa_itmdom-ebeln = im_ekko-ebeln.
+            wa_itmdom-lifnr = im_ekko-lifnr.
+            wa_itmdom-zterm = im_ekko-zterm.
+            CLEAR wa_t052u. CLEAR wa_tvzbt.
+            SELECT SINGLE * FROM t052u INTO wa_t052u
+                            WHERE spras = sy-langu
+                              AND zterm = im_ekko-zterm.
+            IF NOT wa_t052u-text1 IS INITIAL .
+              wa_itmdom-zterm_desc = wa_t052u-text1.
+            ELSE.
+              SELECT SINGLE * FROM tvzbt INTO wa_tvzbt
+                              WHERE spras = sy-langu
+                                AND zterm = im_ekko-zterm.
+              IF NOT wa_tvzbt-vtext IS INITIAL.
+                wa_itmdom-zterm_desc = wa_tvzbt-vtext.
+              ENDIF.
+            ENDIF.
+            wa_itmdom-inco1 = im_ekko-inco1.
+            wa_itmdom-inco2 = im_ekko-inco2.
+            CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+              EXPORTING
+                input  = ls_ekpo-ebelp
+              IMPORTING
+                output = wa_itmdom-ebelp.
+            CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+              EXPORTING
+                input  = ls_ekpo-matnr
+              IMPORTING
+                output = wa_itmdom-matnr.
+            wa_itmdom-maktx = ls_ekpo-txz01.
+            wa_itmdom-menge = ls_ekpo-ktmng.
+            wa_itmdom-meins = ls_ekpo-meins.
+            CLEAR ls_eket.
+            READ TABLE im_eket INTO ls_eket WITH KEY ebelp = ls_ekpo-ebelp.
+            IF sy-subrc EQ 0.
+*--- specifications
+              REFRESH: lt_line.
+              CONCATENATE ls_eket-banfn ls_eket-bnfpo INTO lv_tdname.
+              CALL FUNCTION 'READ_TEXT'
+                EXPORTING
+                  client                  = sy-mandt
+                  id                      = 'B01'
+                  language                = 'E'
+                  name                    = lv_tdname
+                  object                  = 'EBAN'
+                TABLES
+                  lines                   = lt_line
+                EXCEPTIONS
+                  id                      = 1
+                  language                = 2
+                  name                    = 3
+                  not_found               = 4
+                  object                  = 5
+                  reference_check         = 6
+                  wrong_access_to_archive = 7
+                  OTHERS                  = 8.
+              IF lt_line IS NOT INITIAL.
+                CLEAR count.
+                LOOP AT lt_line INTO ls_line.
+                  count = count + 1.
+                  IF count EQ 1.
+                    wa_itmdom-mat_spec = ls_line-tdline.
+                  ELSE.
+                    CONCATENATE wa_itmdom-mat_spec ls_line-tdline INTO wa_itmdom-mat_spec SEPARATED BY space.
+                  ENDIF.
+                ENDLOOP.
+              ENDIF.
+            ENDIF.
+            CONDENSE: wa_itmdom-mat_spec, wa_itmdom-vend_spec, wa_itmdom-deliv,
+                      wa_itmdom-make, wa_itmdom-warr, wa_itmdom-zzcomment.
+            APPEND wa_itmdom TO it_itmdom.
+            CLEAR wa_itmdom.
+            CLEAR ls_ekpo.
+          ENDLOOP.
+          CONVERT DATE sy-datlo TIME sy-timlo INTO TIME STAMP wa_timestamp TIME ZONE wa_zone.
+          v_time = wa_timestamp.
+          CONCATENATE 'C:\RFQ_CREATION\RFQ_' im_ekko-ebeln '_' lv_lifnr '_' v_time '.xls' INTO lv_file_path.
+*&-- Downloading the RFQ data to your local PC
+          CALL METHOD cl_gui_frontend_services=>gui_download
+            EXPORTING
+              filename              = lv_file_path
+              filetype              = 'DAT'
+              write_field_separator = 'X'
+            CHANGING
+              data_tab              = it_hdrdom.
+          CALL METHOD cl_gui_frontend_services=>gui_download
+            EXPORTING
+              filename              = lv_file_path
+*             filetype              = 'DBF'
+              filetype              = 'DAT'
+              append                = 'X'
+              write_field_separator = 'X'
+            CHANGING
+              data_tab              = it_itmdom.
+          IF sy-subrc EQ 0.
+            MESSAGE 'File downloaded successfully' TYPE 'S'.
+          ENDIF.
+        ELSEIF ls_lfm1-kalsk = lv_imp.
+          wa_hdrimp-ebeln           = 'RFQ Number'.
+          wa_hdrimp-ebelp           = 'RFQ Line item'.
+          wa_hdrimp-lifnr           = 'Vendor Code'.
+          wa_hdrimp-zterm           = 'Payment Terms'.
+          wa_hdrimp-zterm_desc      = 'Payment Terms Description'.
+          wa_hdrimp-inco1           = 'Incoterms (Part 1)'.
+          wa_hdrimp-inco2           = 'Incoterms (Part 2)'.
+          wa_hdrimp-matnr           = 'Material'.
+          wa_hdrimp-maktx           = 'Material Description'.
+          wa_hdrimp-menge           = 'Quantity'.
+          wa_hdrimp-meins           = 'UoM'.
+          wa_hdrimp-netpr           = 'Net Price'.
+          wa_hdrimp-mat_spec        = 'Material Specifications'.
+          wa_hdrimp-vend_spec       = 'Vendor Specifications'.
+          wa_hdrimp-mwskz           = 'Tax code'.
+          wa_hdrimp-freight_percent = 'Freight Charge %'.
+          wa_hdrimp-freight_value   = 'Freight Charge Value'.
+          wa_hdrimp-freight_qty     = 'Freight Charge Qty'.
+          wa_hdrimp-othr_chrg_val   = 'Other Charges Value'.
+          wa_hdrimp-othr_chrg_qty   = 'Other Charges Qty'.
+          wa_hdrimp-basic_custom    = 'IN Basic customs'.
+          wa_hdrimp-ecess           = 'ECess on all Duties %'.
+          wa_hdrimp-secess          = 'SECess on all Duty %'.
+          wa_hdrimp-gstcess         = 'IN GST Cess'.
+          wa_hdrimp-insu_per        = 'Insurance %'.
+          wa_hdrimp-insu_val        = 'Insurance Value'.
+          wa_hdrimp-deliv           = 'Delivery'.
+          wa_hdrimp-make            = 'Make'.
+          wa_hdrimp-warr            = 'Warranty'.
+          wa_hdrimp-zzcomment       = 'Comments'.
+          APPEND wa_hdrimp TO it_hdrimp.
+          CLEAR wa_hdrimp.
+          REFRESH it_itmimp. CLEAR wa_itmimp.
+          LOOP AT im_ekpo INTO ls_ekpo.
+            wa_itmimp-ebeln = im_ekko-ebeln.
+            wa_itmimp-lifnr = im_ekko-lifnr.
+            wa_itmimp-zterm = im_ekko-zterm.
+            CLEAR wa_t052u. CLEAR wa_tvzbt.
+            SELECT SINGLE * FROM t052u INTO wa_t052u
+                            WHERE spras = sy-langu
+                              AND zterm = im_ekko-zterm.
+            IF NOT wa_t052u-text1 IS INITIAL .
+              wa_itmimp-zterm_desc = wa_t052u-text1.
+            ELSE.
+              SELECT SINGLE * FROM tvzbt INTO wa_tvzbt
+                              WHERE spras = sy-langu
+                                AND zterm = im_ekko-zterm.
+              IF NOT wa_tvzbt-vtext IS INITIAL.
+                wa_itmimp-zterm_desc = wa_tvzbt-vtext.
+              ENDIF.
+            ENDIF.
+            wa_itmimp-inco1 = im_ekko-inco1.
+            wa_itmimp-inco2 = im_ekko-inco2.
+            CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+              EXPORTING
+                input  = ls_ekpo-ebelp
+              IMPORTING
+                output = wa_itmimp-ebelp.
+            CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+              EXPORTING
+                input  = ls_ekpo-matnr
+              IMPORTING
+                output = wa_itmimp-matnr.
+            wa_itmimp-maktx = ls_ekpo-txz01.
+            wa_itmimp-menge = ls_ekpo-ktmng.
+            wa_itmimp-meins = ls_ekpo-meins.
+            CLEAR ls_eket.
+            READ TABLE im_eket INTO ls_eket WITH KEY ebelp = ls_ekpo-ebelp.
+            IF sy-subrc EQ 0.
+*--- specifications
+              REFRESH: lt_line.
+              CONCATENATE ls_eket-banfn ls_eket-bnfpo INTO lv_tdname.
+              CALL FUNCTION 'READ_TEXT'
+                EXPORTING
+                  client                  = sy-mandt
+                  id                      = 'B01'
+                  language                = 'E'
+                  name                    = lv_tdname
+                  object                  = 'EBAN'
+                TABLES
+                  lines                   = lt_line
+                EXCEPTIONS
+                  id                      = 1
+                  language                = 2
+                  name                    = 3
+                  not_found               = 4
+                  object                  = 5
+                  reference_check         = 6
+                  wrong_access_to_archive = 7
+                  OTHERS                  = 8.
+              IF lt_line IS NOT INITIAL.
+                CLEAR count.
+                LOOP AT lt_line INTO ls_line.
+                  count = count + 1.
+                  IF count EQ 1.
+                    wa_itmimp-mat_spec = ls_line-tdline.
+                  ELSE.
+                    CONCATENATE wa_itmimp-mat_spec ls_line-tdline INTO wa_itmimp-mat_spec SEPARATED BY space.
+                  ENDIF.
+                ENDLOOP.
+              ENDIF.
+            ENDIF.
+            CONDENSE: wa_itmimp-mat_spec, wa_itmimp-vend_spec, wa_itmimp-deliv,
+                      wa_itmimp-make, wa_itmimp-warr, wa_itmimp-zzcomment.
+            APPEND wa_itmimp TO it_itmimp.
+            CLEAR wa_itmimp.
+            CLEAR ls_ekpo.
+          ENDLOOP.
+          CONVERT DATE sy-datlo TIME sy-timlo INTO TIME STAMP wa_timestamp TIME ZONE wa_zone.
+          v_time = wa_timestamp.
+          CONCATENATE 'C:\RFQ_CREATION\RFQ_' im_ekko-ebeln '_'  lv_lifnr '_' v_time '.xls' INTO lv_file_path.
+*&-- Downloading the RFQ data to your local PC
+          CALL METHOD cl_gui_frontend_services=>gui_download
+            EXPORTING
+              filename              = lv_file_path
+              filetype              = 'DAT'
+              write_field_separator = 'X'
+            CHANGING
+              data_tab              = it_hdrimp.
+          CALL METHOD cl_gui_frontend_services=>gui_download
+            EXPORTING
+              filename              = lv_file_path
+*             filetype              = 'DBF'
+              filetype              = 'DAT'
+              append                = 'X'
+              write_field_separator = 'X'
+            CHANGING
+              data_tab              = it_itmimp.
+          IF sy-subrc EQ 0.
+            MESSAGE 'File downloaded successfully' TYPE 'S'.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
