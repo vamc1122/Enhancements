@@ -1,0 +1,86 @@
+METHOD if_ex_fi_items_ch_data~change_items.
+****************************KGSL SAP Systems*****************************
+** Program Name      : ZSD_ZAC_FBL5N
+** Date              : 08/03/2016
+** Requestor         : Eswar Dhananjay
+** Programmer        : Sravanthi.Muthireddy
+** Transport Request : IN1K906882
+*************************************************************************
+** Short Description : ZAC For Creation of condition record at VK11 Tcode.
+*************************************************************************
+*************************************************************************
+** Change History Log                                                   *
+**----------------------------------------------------------------------*
+** Sequnce |Date      |Name        |ZSERVICE | Description              *
+**----------------------------------------------------------------------*
+** 001     |08/03/2016|Sravanthi|         | Initial Development         *
+**----------------------------------------------------------------------*
+*  IF sy-tcode = 'FBL5N'.
+********************************************************
+**        T Y P E S   S T R U C T U R E S              *
+*********************************************************
+*
+*    TYPES : BEGIN OF ty_region,
+*             uname TYPE uname,                "User Name
+*             regio TYPE regio,                "Region (State, Province, County)
+*            END OF ty_region.
+*
+*    TYPES: BEGIN OF ty_kna1,
+*            kunnr TYPE kunnr,                "Customer Number
+*            regio TYPE regio,                "Region (State, Province, County)
+*           END OF ty_kna1.
+*********************************************************
+**    I N T E R N A L   T A B L E S                     *
+*********************************************************
+*    DATA : it_region TYPE STANDARD TABLE OF ty_region,
+*           wa_region TYPE ty_region,
+*           it_kna1 TYPE STANDARD TABLE OF ty_kna1,
+*           wa_kna1 TYPE ty_kna1,
+*           message TYPE string.
+*    DATA:    wa_item TYPE rfposxext.
+** Get the data from (zsdt_slr_zone) Table based on the sy-uname
+*    REFRESH : it_region.
+*    SELECT uname
+*           regio
+*           FROM zsdt_slr_zone
+*           INTO TABLE it_region
+*           WHERE uname EQ sy-uname
+*           AND   activ EQ 'X'.
+*    IF sy-subrc EQ 0 AND it_region IS NOT INITIAL.
+*      CLEAR: wa_region.
+*      READ TABLE it_region INTO wa_region WITH KEY regio = '*'.
+*      IF sy-subrc EQ 0.
+*      ELSE.
+** Get the Customers region from Customer Master data based on the customers
+*        IF ct_items IS NOT INITIAL.
+*          REFRESH : it_kna1.
+*          SELECT kunnr
+*                 regio
+*                 FROM kna1
+*                 INTO TABLE it_kna1
+*           FOR ALL ENTRIES IN ct_items
+*                 WHERE kunnr = ct_items-konto.
+*          IF sy-subrc EQ 0.
+*          ENDIF.
+*        ENDIF.
+** Restrict the Customer Information Zonal Wise
+*        LOOP AT ct_items INTO wa_item.
+*          CLEAR: wa_kna1.
+*          READ TABLE it_kna1 INTO wa_kna1 WITH KEY kunnr = wa_item-konto.
+*          IF sy-subrc EQ 0.
+*            CLEAR wa_region.
+*            READ TABLE it_region INTO wa_region WITH KEY regio = wa_kna1-regio.
+*            IF sy-subrc EQ 0.
+*            ELSE.
+*              DELETE ct_items WHERE konto = wa_item-konto.
+*            ENDIF.
+*          ENDIF.
+*          CLEAR: wa_item.
+*        ENDLOOP.
+*      ENDIF.
+*    ELSE.
+*      CONCATENATE sy-uname 'Is Not Defined for Zone' INTO message SEPARATED BY ' '.
+*      MESSAGE message TYPE 'E'.
+*    ENDIF.
+*  ENDIF.
+ENDMETHOD.
