@@ -1,0 +1,4 @@
+post : MB_MIGO_BADI
+Check : prog:SAPLXQSM
+        INCL : ZXQSMUO7
+        EXIT : EXIT_SAPLIPW1_008
