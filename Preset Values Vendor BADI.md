@@ -1,0 +1,13 @@
+ZSDR_BADI4.
+
+
+  method IF_EX_VENDOR_ADD_DATA~PRESET_VALUES_PORG.
+    data : wa TYPE zbadi.
+    SELECT SINGLE * FROM zBADI INTO WA WHERE EKORG = E_LFM1-EKORG.
+      IF SY-SUBRC = 0.
+        E_LFM1-ZTERM = WA-ZTERM.
+        ENDIF.
+
+
+
+  endmethod.
