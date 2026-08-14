@@ -1,0 +1,65 @@
+MASS MAINTANCE mm17
+Customizing request new field (RPN Arjas) in mm17
+To add new field  in mm01-2-3 Include LZMGD2O01 Fg :ZMGD2
+MM17--> Include : ZXMG0U02 BADi(get data and Validate in ZXMG0U02) :MG_MASS_NEWSEG
+*----------------------------------------------------------------------*
+***INCLUDE LZMGD2O01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  MODIFY_SCREEN  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+" BOC Added by vamsi IN1K931010
+MODULE modify_screen OUTPUT.
+
+  IF sy-tcode CS '3'.
+
+    LOOP AT SCREEN.
+      IF screen-name = 'MARA-ZRPN'.
+        screen-input = 0.
+        MODIFY SCREEN.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  GET_DATA  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE get_data OUTPUT.
+
+  CALL FUNCTION 'MARA_GET_SUB'
+    IMPORTING
+      wmara = mara
+      xmara = mara
+      ymara = lmara.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  MODIFY_DATA  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE modify_data INPUT.
+
+  DATA : lv_rpn TYPE mara-zrpn.
+
+  lv_rpn = mara-zrpn.
+
+
+  CALL FUNCTION 'MARA_GET_SUB'
+    IMPORTING
+      wmara = mara
+      xmara = mara
+      ymara = lmara.
+  mara-zrpn   =            lv_rpn.
+
+
+  CALL FUNCTION 'MARA_SET_SUB'
+    EXPORTING
+      wmara = mara.
+
+ENDMODULE.
+" EOC
